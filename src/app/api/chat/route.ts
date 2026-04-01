@@ -34,11 +34,15 @@ export async function POST(req: Request) {
   // // 1. Check Usage Config Limit
   const maxChats = parseInt(process.env.MAX_CHATS_PER_USER || "5", 10);
 
-  // // 2. Query Usage from Supabase (count rows in usage_logs)
+  // // 2. Query Usage from Supabase (count rows in usage_logs) — hanya hari ini
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
   const { count, error: usageError } = await supabase
     .from("usage_logs")
     .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .gte("created_at", todayStart.toISOString());
 
   const currentChatCount = count || 0;
 
@@ -96,13 +100,14 @@ async function executeTool(
   input: any,
   supabase: Awaited<ReturnType<typeof createClient>>,
 ) {
-  if (name == "get_schema") {
+  if (name === "get_schema") {
     return {
       tables: ["sales", "products", "inventory", "categories"],
       sales_columns: ["id", "product_id", "quantity", "revenue", "sold_at"],
     };
   }
-  if (name == "query_sales_comparison") {
+
+  if (name === "query_sales_comparison") {
     const {
       current_month,
       previous_month,
@@ -119,5 +124,35 @@ async function executeTool(
     });
     if (error) throw new Error(error.message);
     return data;
+  }
+
+  if (name === "get_top_products") {
+    const { period, category, metric, limit = 10 } = input;
+
+    const { data, error } = await supabase.rpc("get_top_products", {
+      p_period: period,
+      p_category: category,
+      p_metric: metric,
+      p_limit: limit,
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  if (name == "get_revenue_breakdown") {
+    const { period, breakdown } = input;
+
+    const { data, error } = await supabase.rpc("get_revenue_breakdown", {
+      p_period: period,
+      p_breakdown: breakdown,
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  if (name === "generate_chart_config") {
+    return { chart_config: input, status: "ready" };
   }
 }
