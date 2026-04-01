@@ -79,11 +79,14 @@ export const RETAIL_TOOLS = [
 
   {
     name: "get_revenue_breakdown",
-    description: `Dapatkan pendapatan breakdown berdasarkan kategori/produk/minggu/bulan.
-                 Gunakan ketika user tanya:
-                 - "Pendapatan kategori apa yang paling tinggi bulan lalu"
-                 - "berapa revenue kaos polo dewasa bulan ini"
-                 - "produk apa yang paling banyak pendapatannya bulan ini"`,
+    description: `Dapatkan total pendapatan/revenue berdasarkan kategori, produk, atau periode waktu.
+Gunakan tool ini ketika user tanya:
+- "berapa revenue kategori anak bulan maret"
+- "berapa total pendapatan kategori dewasa"
+- "Pendapatan kategori apa yang paling tinggi bulan lalu"
+- "berapa revenue kaos polo dewasa bulan ini"
+- "breakdown revenue per produk bulan ini"
+- "revenue per minggu bulan ini"`,
     input_schema: {
       type: "object",
       properties: {
@@ -94,11 +97,18 @@ export const RETAIL_TOOLS = [
         },
         breakdown: {
           type: "string",
+          enum: ["kategori", "produk", "minggu"],
           description:
-            "Filter breakdown: 'produk', 'kategori (dewasa, anak, semua)', atau 'week/minggu'",
+            "Dimensi pengelompokan: 'kategori' = per kategori produk, 'produk' = per nama produk, 'minggu' = per minggu",
+        },
+        category: {
+          type: "string",
+          enum: ["dewasa", "anak", "semua"],
+          description:
+            "Opsional. Filter kategori tertentu: 'anak', 'dewasa', atau 'semua'. Default: 'semua'",
         },
       },
-      required: [],
+      required: ["breakdown"],
     },
   },
   {
@@ -117,7 +127,7 @@ export const RETAIL_TOOLS = [
         x_key: { type: "string" },
         y_key: { type: "string" },
       },
+      required: ["chart_type", "data", "title"],
     },
-    required: ["chart_type", "data", "title"],
   },
 ];

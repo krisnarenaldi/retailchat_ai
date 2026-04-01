@@ -8,6 +8,113 @@ import { useRouter } from "next/navigation";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+
+const CHART_COLORS = [
+  "#10b981",
+  "#6366f1",
+  "#f59e0b",
+  "#ef4444",
+  "#3b82f6",
+  "#8b5cf6",
+  "#ec4899",
+  "#14b8a6",
+];
+
+type ChartConfig = {
+  chart_type: "bar" | "line" | "pie";
+  data: Record<string, unknown>[];
+  title: string;
+  x_key: string;
+  y_key: string;
+};
+
+function RetailChart({ config }: { config: ChartConfig }) {
+  const { chart_type, data, title, x_key, y_key } = config;
+  if (!data || data.length === 0) return null;
+
+  return (
+    <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <p className="mb-3 text-sm font-semibold text-gray-700">{title}</p>
+      <ResponsiveContainer width="100%" height={260}>
+        {chart_type === "pie" ? (
+          <PieChart>
+            <Pie
+              data={data}
+              dataKey={y_key}
+              nameKey={x_key}
+              cx="50%"
+              cy="50%"
+              outerRadius={90}
+              label={({ name, percent }) =>
+                `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
+              }
+            >
+              {data.map((_, i) => (
+                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip />
+            <Legend />
+          </PieChart>
+        ) : chart_type === "line" ? (
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis
+              dataKey={x_key}
+              tick={{ fontSize: 11 }}
+              interval="preserveStartEnd"
+            />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip />
+            <Legend />
+            <Line
+              type="monotone"
+              dataKey={y_key}
+              stroke={CHART_COLORS[0]}
+              strokeWidth={2}
+              dot={{ r: 3 }}
+            />
+          </LineChart>
+        ) : (
+          <BarChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis
+              dataKey={x_key}
+              tick={{ fontSize: 11 }}
+              interval={0}
+              angle={data.length > 6 ? -30 : 0}
+              textAnchor={data.length > 6 ? "end" : "middle"}
+              height={data.length > 6 ? 50 : 30}
+            />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey={y_key} radius={[4, 4, 0, 0]}>
+              {data.map((_, i) => (
+                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+              ))}
+            </Bar>
+          </BarChart>
+        )}
+      </ResponsiveContainer>
+    </div>
+  );
+}
 
 export default function Chat() {
   const router = useRouter();
@@ -148,38 +255,60 @@ export default function Chat() {
                     {m.role === "user" ? (
                       m.content
                     ) : (
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          table: ({ children }) => (
-                            <div className="overflow-x-auto my-3">
-                              <table className="w-full border-collapse text-sm">
+                      <>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            table: ({ children }) => (
+                              <div className="overflow-x-auto my-3">
+                                <table className="w-full border-collapse text-sm">
+                                  {children}
+                                </table>
+                              </div>
+                            ),
+                            thead: ({ children }) => (
+                              <thead className="bg-emerald-50">
                                 {children}
-                              </table>
-                            </div>
-                          ),
-                          thead: ({ children }) => (
-                            <thead className="bg-emerald-50">{children}</thead>
-                          ),
-                          th: ({ children }) => (
-                            <th className="px-4 py-2 text-left font-semibold text-emerald-800 border border-gray-200 whitespace-nowrap">
-                              {children}
-                            </th>
-                          ),
-                          td: ({ children }) => (
-                            <td className="px-4 py-2 text-gray-700 border border-gray-200">
-                              {children}
-                            </td>
-                          ),
-                          tr: ({ children }) => (
-                            <tr className="even:bg-gray-50 hover:bg-emerald-50/40 transition-colors">
-                              {children}
-                            </tr>
-                          ),
-                        }}
-                      >
-                        {m.content}
-                      </ReactMarkdown>
+                              </thead>
+                            ),
+                            th: ({ children }) => (
+                              <th className="px-4 py-2 text-left font-semibold text-emerald-800 border border-gray-200 whitespace-nowrap">
+                                {children}
+                              </th>
+                            ),
+                            td: ({ children }) => (
+                              <td className="px-4 py-2 text-gray-700 border border-gray-200">
+                                {children}
+                              </td>
+                            ),
+                            tr: ({ children }) => (
+                              <tr className="even:bg-gray-50 hover:bg-emerald-50/40 transition-colors">
+                                {children}
+                              </tr>
+                            ),
+                          }}
+                        >
+                          {m.content}
+                        </ReactMarkdown>
+                        {m.toolInvocations
+                          ?.filter(
+                            (inv) =>
+                              inv.toolName === "generate_chart_config" &&
+                              inv.state === "result",
+                          )
+                          .map((inv, i) => (
+                            <RetailChart
+                              key={i}
+                              config={
+                                (
+                                  inv as {
+                                    result: { chart_config: ChartConfig };
+                                  }
+                                ).result.chart_config
+                              }
+                            />
+                          ))}
+                      </>
                     )}
                   </div>
                 </div>

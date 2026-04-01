@@ -11,13 +11,17 @@ export async function POST(req: Request) {
   // x. setting prompot
   const today = new Date().toISOString().slice(0, 10); // format: YYYY-MM-DD
   const systemPrompt = `Tanggal hari ini adalah ${today}.
-                        Kamu adalah asisten analitik untuk toko retail baju dewasa dan anak.
-                        Kamu punya akses ke data penjualan. Selalu tampilkan angka dalam format Rupiah
-                        jika menyebut harga/revenue.
-                        Jika user bertanya tentang data penjualan, kamu harus menjawab dengan akurat.
-                        Jika user bertanya di luar lingkup kamu sebagai asisten analitik, misal: 
-                        apa ibu kota Perancis? atau bagaimana cuaca di Jakarta?
-                        kamu harus menjawab: "Maaf, saya hanya bisa membantu dengan data penjualan."`;
+Kamu adalah asisten analitik untuk toko retail baju dewasa dan anak.
+Kamu punya akses ke data penjualan. Selalu tampilkan angka dalam format Rupiah jika menyebut harga/revenue.
+
+ATURAN PENGGUNAAN TOOL:
+1. Jika user bertanya tentang data penjualan, LANGSUNG panggil tool yang sesuai — jangan hanya narasi.
+2. Setelah mendapat data dari tool (get_top_products, query_sales_comparison, get_revenue_breakdown),
+   SELALU panggil generate_chart_config dengan data tersebut untuk membuat visualisasi chart.
+3. Pilih chart_type yang tepat: "bar" untuk perbandingan produk, "line" untuk tren waktu, "pie" untuk proporsi/persentase.
+4. Gunakan nama kolom yang BENAR dari data hasil tool untuk x_key dan y_key.
+
+Jika user bertanya di luar lingkup analitik (misal cuaca, ibu kota, dll), jawab: "Maaf, saya hanya bisa membantu dengan data penjualan."`;
   // a. Get user session
   const {
     data: { user },
@@ -69,7 +73,7 @@ export async function POST(req: Request) {
   }
 
   // 5. Build tools dari RETAIL_TOOLS + executeTool (agentic loop)
-  const maxTokens = parseInt(process.env.MAX_OUTPUT_TOKENS || "50", 10);
+  const maxTokens = parseInt(process.env.MAX_OUTPUT_TOKENS || "4096", 10);
 
   const agentTools = Object.fromEntries(
     RETAIL_TOOLS.map((t) => [
@@ -100,6 +104,7 @@ async function executeTool(
   input: any,
   supabase: Awaited<ReturnType<typeof createClient>>,
 ) {
+  console.log(`[tool] ${name}`, JSON.stringify(input));
   if (name === "get_schema") {
     return {
       tables: ["sales", "products", "inventory", "categories"],
@@ -140,12 +145,13 @@ async function executeTool(
     return data;
   }
 
-  if (name == "get_revenue_breakdown") {
-    const { period, breakdown } = input;
+  if (name === "get_revenue_breakdown") {
+    const { period, breakdown, category = "semua" } = input;
 
     const { data, error } = await supabase.rpc("get_revenue_breakdown", {
       p_period: period,
       p_breakdown: breakdown,
+      p_category: category,
     });
 
     if (error) throw new Error(error.message);
