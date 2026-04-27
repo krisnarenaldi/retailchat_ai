@@ -37,8 +37,23 @@ const CHART_COLORS = [
 ];
 
 const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
+  const clone = svgElement.cloneNode(true) as SVGSVGElement;
+  if (!clone.getAttribute("xmlns")) {
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  }
+  if (!clone.getAttribute("xmlns:xlink")) {
+    clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+  }
+
+  const rect = svgElement.getBoundingClientRect();
+  const width = rect.width || Number(clone.getAttribute("width")) || 800;
+  const height = rect.height || Number(clone.getAttribute("height")) || 600;
+  clone.setAttribute("width", String(width));
+  clone.setAttribute("height", String(height));
+  clone.setAttribute("viewBox", clone.getAttribute("viewBox") || `0 0 ${width} ${height}`);
+
   const serializer = new XMLSerializer();
-  const svgString = serializer.serializeToString(svgElement);
+  const svgString = serializer.serializeToString(clone);
   const svgData = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
 
   const image = new Image();
@@ -46,14 +61,13 @@ const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
 
   return new Promise<void>((resolve, reject) => {
     image.onload = () => {
-      const rect = svgElement.getBoundingClientRect();
       const canvas = document.createElement("canvas");
-      canvas.width = rect.width * 2;
-      canvas.height = rect.height * 2;
+      canvas.width = width * 2;
+      canvas.height = height * 2;
       const ctx = canvas.getContext("2d");
       if (!ctx) return reject(new Error("Canvas context unavailable"));
       ctx.scale(2, 2);
-      ctx.drawImage(image, 0, 0, rect.width, rect.height);
+      ctx.drawImage(image, 0, 0, width, height);
       const pngData = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = pngData;
