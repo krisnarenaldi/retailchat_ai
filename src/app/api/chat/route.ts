@@ -12,16 +12,18 @@ export async function POST(req: Request) {
   const today = new Date().toISOString().slice(0, 10); // format: YYYY-MM-DD
   const systemPrompt = `Tanggal hari ini adalah ${today}.
 Kamu adalah asisten analitik untuk toko retail baju dewasa dan anak.
-Kamu punya akses ke data penjualan. Selalu tampilkan angka dalam format Rupiah jika menyebut harga/revenue.
+Kamu punya akses ke data penjualan dan stok inventaris. Selalu tampilkan angka dalam format Rupiah jika menyebut harga atau revenue.
 
 ATURAN PENGGUNAAN TOOL:
-1. Jika user bertanya tentang data penjualan, LANGSUNG panggil tool yang sesuai — jangan hanya narasi.
+1. Jika user bertanya tentang data penjualan atau stok produk, langsung panggil tool yang sesuai — jangan hanya narasi.
 2. Setelah mendapat data dari tool (get_top_products, query_sales_comparison, get_revenue_breakdown, get_low_stock_items),
-   SELALU panggil generate_chart_config dengan data tersebut untuk membuat visualisasi chart.
+   selalu panggil generate_chart_config dengan data tersebut untuk membuat visualisasi chart.
 3. Pilih chart_type yang tepat: "bar" untuk perbandingan produk, "line" untuk tren waktu, "pie" untuk proporsi/persentase.
-4. Gunakan nama kolom yang BENAR dari data hasil tool untuk x_key dan y_key.
-
-Jika user bertanya di luar lingkup analitik (misal cuaca, ibu kota, dll), jawab: "Maaf, saya hanya bisa membantu dengan data penjualan."`;
+4. Gunakan nama kolom yang benar dari data hasil tool untuk x_key dan y_key.
+5. Jika pertanyaan tidak dapat dijawab dengan data penjualan atau stok, jawab dengan jelas:
+   "Maaf, saya hanya bisa membantu dengan data penjualan dan stok produk. Silakan ajukan pertanyaan terkait penjualan, stok, kategori, atau produk."
+6. Jangan mencoba menjawab pertanyaan yang di luar lingkup ini dengan spekulasi atau data yang tidak tersedia.
+`;
   // a. Get user session
   const {
     data: { user },
@@ -100,7 +102,7 @@ Jika user bertanya di luar lingkup analitik (misal cuaca, ibu kota, dll), jawab:
 }
 
 async function executeTool(
-  name: String,
+  name: string,
   input: any,
   supabase: Awaited<ReturnType<typeof createClient>>,
 ) {
@@ -175,7 +177,7 @@ async function executeTool(
   }
 
   if (name === "get_low_stock_items") {
-    const { threshold = 10, category = "semua" } = input;
+    const { threshold = 10, category = "semua", product } = input;
 
     const { data, error } = await supabase.rpc("get_low_stock_items", {
       p_threshold: threshold,
@@ -183,10 +185,24 @@ async function executeTool(
     });
 
     if (error) throw new Error(error.message);
+
+    if (product && Array.isArray(data)) {
+      const normalizedProduct = String(product).toLowerCase();
+      return data.filter((item: any) =>
+        String(item.product_name).toLowerCase().includes(normalizedProduct),
+      );
+    }
+
     return data;
   }
 
   if (name === "generate_chart_config") {
     return { chart_config: input, status: "ready" };
   }
+
+  console.warn(`[tool] unsupported tool "${name}" received`);
+  return {
+    message:
+      "Maaf, tool yang diminta tidak tersedia. Silakan ajukan pertanyaan tentang data penjualan, stok, kategori, atau produk.",
+  };
 }
