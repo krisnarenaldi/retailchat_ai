@@ -153,6 +153,98 @@ Gunakan tool ini ketika user tanya:
     },
   },
   {
+    name: "inventory_alerts",
+    description: `Berikan peringatan inventaris untuk produk yang stoknya rendah atau hampir habis. Gunakan tool ini ketika user tanya:
+- "inventory alerts"
+- "produk apa yang hampir habis stoknya"
+- "beritahu saya stok yang perlu diperhatikan"`,
+    input_schema: {
+      type: "object",
+      properties: {
+        threshold: {
+          type: "number",
+          description: "Stok maksimum untuk memicu alert. Default 10.",
+          default: 10,
+        },
+        category: {
+          type: "string",
+          enum: ["dewasa", "anak", "semua"],
+          description:
+            "Opsional. Filter kategori tertentu: 'anak', 'dewasa', atau 'semua'. Default: 'semua'",
+        },
+        product: {
+          type: "string",
+          description:
+            "Opsional. Filter berdasarkan nama produk atau jenis produk, misalnya 'jaket'.",
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "restock_recommendations",
+    description: `Berikan rekomendasi restock berdasarkan stok saat ini dan laju penjualan. Gunakan tool ini ketika user tanya:
+- "restock recommendations"
+- "barang mana yang harus di restock"
+- "berapa banyak restock yang diperlukan"`,
+    input_schema: {
+      type: "object",
+      properties: {
+        days_of_history: {
+          type: "number",
+          description: "Jumlah hari terakhir yang digunakan untuk menghitung laju penjualan. Default 30.",
+          default: 30,
+        },
+        target_days: {
+          type: "number",
+          description: "Jumlah hari inventaris yang ingin dipertahankan. Default 14.",
+          default: 14,
+        },
+        category: {
+          type: "string",
+          enum: ["dewasa", "anak", "semua"],
+          description:
+            "Opsional. Filter kategori tertentu: 'anak', 'dewasa', atau 'semua'. Default: 'semua'",
+        },
+        product: {
+          type: "string",
+          description:
+            "Opsional. Filter rekomendasi berdasarkan nama produk atau jenis produk.",
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: "revenue_forecast",
+    description: `Perkirakan pendapatan untuk periode mendatang berdasarkan data historis. Gunakan tool ini ketika user tanya:
+- "revenue forecast"
+- "estimasi pendapatan bulan depan"
+- "proyeksi revenue"`,
+    input_schema: {
+      type: "object",
+      properties: {
+        months_ahead: {
+          type: "number",
+          description: "Jumlah bulan ke depan yang ingin diprediksi. Default 1.",
+          default: 1,
+        },
+        category: {
+          type: "string",
+          enum: ["dewasa", "anak", "semua"],
+          description:
+            "Opsional. Filter kategori tertentu: 'anak', 'dewasa', atau 'semua'. Default: 'semua'",
+        },
+        product: {
+          type: "string",
+          description:
+            "Opsional. Filter perkiraan berdasarkan nama produk atau jenis produk.",
+        },
+      },
+      required: [],
+    },
+  },
+  {
     name: "generate_chart_config",
     description:
       "Buat konfigurasi chart untuk divisualisasikan di frontend. Panggil SETELAH mendapat data.",

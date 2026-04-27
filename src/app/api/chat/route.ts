@@ -15,13 +15,13 @@ Kamu adalah asisten analitik untuk toko retail baju dewasa dan anak.
 Kamu punya akses ke data penjualan dan stok inventaris. Selalu tampilkan angka dalam format Rupiah jika menyebut harga atau revenue.
 
 ATURAN PENGGUNAAN TOOL:
-1. Jika user bertanya tentang data penjualan atau stok produk, langsung panggil tool yang sesuai — jangan hanya narasi.
-2. Setelah mendapat data dari tool (get_top_products, query_sales_comparison, get_revenue_breakdown, get_low_stock_items),
+1. Jika user bertanya tentang data penjualan, stok produk, atau proyeksi pendapatan, langsung panggil tool yang sesuai — jangan hanya narasi.
+2. Setelah mendapat data dari tool (get_top_products, query_sales_comparison, get_revenue_breakdown, get_low_stock_items, inventory_alerts, restock_recommendations, revenue_forecast),
    selalu panggil generate_chart_config dengan data tersebut untuk membuat visualisasi chart.
 3. Pilih chart_type yang tepat: "bar" untuk perbandingan produk, "line" untuk tren waktu, "pie" untuk proporsi/persentase.
 4. Gunakan nama kolom yang benar dari data hasil tool untuk x_key dan y_key.
-5. Jika pertanyaan tidak dapat dijawab dengan data penjualan atau stok, jawab dengan jelas:
-   "Maaf, saya hanya bisa membantu dengan data penjualan dan stok produk. Silakan ajukan pertanyaan terkait penjualan, stok, kategori, atau produk."
+5. Jika pertanyaan tidak dapat dijawab dengan data penjualan, stok, atau proyeksi pendapatan, jawab dengan jelas:
+   "Maaf, saya hanya bisa membantu dengan data penjualan dan stok produk. Silakan ajukan pertanyaan terkait penjualan, stok, kategori, produk, atau proyeksi revenue."
 6. Jangan mencoba menjawab pertanyaan yang di luar lingkup ini dengan spekulasi atau data yang tidak tersedia.
 `;
   // a. Get user session
@@ -194,6 +194,172 @@ async function executeTool(
     }
 
     return data;
+  }
+
+  if (name === "inventory_alerts") {
+    const { threshold = 10, category = "semua", product } = input;
+    const { data, error } = await supabase.rpc("get_low_stock_items", {
+      p_threshold: threshold,
+      p_category: category,
+    });
+
+    if (error) throw new Error(error.message);
+
+    if (product && Array.isArray(data)) {
+      const normalizedProduct = String(product).toLowerCase();
+      return data.filter((item: any) =>
+        String(item.product_name).toLowerCase().includes(normalizedProduct),
+      );
+    }
+
+    return data;
+  }
+
+  if (name === "restock_recommendations") {
+    const {
+      days_of_history = 30,
+      target_days = 14,
+      category = "semua",
+      product,
+    } = input;
+
+    const salesStart = new Date();
+    salesStart.setDate(salesStart.getDate() - Number(days_of_history));
+
+    const [{ data: inventoryData, error: inventoryError }, { data: salesData, error: salesError }, { data: productsData, error: productsError }] =
+      await Promise.all([
+        supabase
+          .from("inventory")
+          .select("product_id,stock_qty,products(name,slug,category,size,price)"),
+        supabase
+          .from("sales")
+          .select("product_id,quantity,sold_at")
+          .gte("sold_at", salesStart.toISOString()),
+        supabase
+          .from("products")
+          .select("id,name,slug,category,size,price"),
+      ]);
+
+    if (inventoryError || salesError || productsError)
+      throw new Error(
+        (inventoryError || salesError || productsError)?.message || "Failed to load restock recommendation data",
+      );
+
+    const productMap = new Map<number, any>(
+      (productsData || []).map((productRow: any) => [productRow.id, productRow]),
+    );
+
+    const productFilter = product
+      ? String(product).toLowerCase()
+      : undefined;
+
+    const recommendations = (inventoryData || [])
+      .map((item: any) => {
+        const productInfo = productMap.get(item.product_id) as any;
+        if (!productInfo) return null;
+        if (category !== "semua" && productInfo.category !== category) return null;
+        if (
+          productFilter &&
+          !String(productInfo.name).toLowerCase().includes(productFilter)
+        )
+          return null;
+
+        const soldQty = (salesData || [])
+          .filter((sale: any) => sale.product_id === item.product_id)
+          .reduce((sum: number, sale: any) => sum + Number(sale.quantity || 0), 0);
+
+        const avgDailySales = soldQty / Math.max(1, Number(days_of_history));
+        const desiredStock = Math.ceil(avgDailySales * Number(target_days));
+        const recommendedOrder = Math.max(0, desiredStock - Number(item.stock_qty || 0));
+
+        return {
+          product_name: productInfo.name,
+          slug: productInfo.slug,
+          category: productInfo.category,
+          size: productInfo.size,
+          stock_qty: item.stock_qty,
+          avg_daily_sales: Number(avgDailySales.toFixed(2)),
+          target_days: Number(target_days),
+          recommended_restock_qty: recommendedOrder,
+        };
+      })
+      .filter(Boolean)
+      .filter((item: any) => item.recommended_restock_qty > 0);
+
+    return recommendations;
+  }
+
+  if (name === "revenue_forecast") {
+    const { months_ahead = 1, category = "semua", product } = input;
+    const historyMonths = 6;
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - historyMonths);
+
+    const [{ data: salesData, error: salesError }, { data: productsData, error: productsError }] =
+      await Promise.all([
+        supabase
+          .from("sales")
+          .select("product_id,revenue,sold_at" )
+          .gte("sold_at", startDate.toISOString()),
+        supabase
+          .from("products")
+          .select("id,name,slug,category,size,price"),
+      ]);
+
+    if (salesError || productsError)
+      throw new Error(
+        (salesError || productsError)?.message || "Failed to load revenue forecast data",
+      );
+
+    const productMap = new Map<number, any>(
+      (productsData || []).map((productRow: any) => [productRow.id, productRow]),
+    );
+
+    const productFilter = product
+      ? String(product).toLowerCase()
+      : undefined;
+
+    const monthlyRevenue = new Map<string, number>();
+
+    (salesData || []).forEach((sale: any) => {
+      const productInfo = productMap.get(sale.product_id);
+      if (!productInfo) return;
+      if (category !== "semua" && productInfo.category !== category) return;
+      if (
+        productFilter &&
+        !String(productInfo.name).toLowerCase().includes(productFilter)
+      )
+        return;
+
+      const monthKey = new Date(sale.sold_at).toISOString().slice(0, 7);
+      monthlyRevenue.set(
+        monthKey,
+        (monthlyRevenue.get(monthKey) || 0) + Number(sale.revenue || 0),
+      );
+    });
+
+    const monthKeys = Array.from(monthlyRevenue.keys()).sort();
+    const historical = monthKeys.map((month) => ({
+      month,
+      revenue: monthlyRevenue.get(month) || 0,
+    }));
+
+    const revenueValues = historical.map((row) => row.revenue);
+    const averageRevenue =
+      revenueValues.reduce((sum, value) => sum + value, 0) /
+      Math.max(1, revenueValues.length);
+
+    const forecastMonth = new Date();
+    forecastMonth.setMonth(forecastMonth.getMonth() + Number(months_ahead));
+    const forecastKey = forecastMonth.toISOString().slice(0, 7);
+
+    return [
+      ...historical,
+      {
+        month: forecastKey,
+        forecast_revenue: Math.round(averageRevenue),
+      },
+    ];
   }
 
   if (name === "generate_chart_config") {
