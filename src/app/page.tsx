@@ -475,7 +475,7 @@ export default function Chat() {
               <Sparkles className="h-5 w-5 text-white" />
             </div>
             <span className="font-bold text-[17px] tracking-tight text-slate-800 uppercase">
-              Retail Sales Analytics
+              Sales Analytics
             </span>
           </div>
           <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-1 text-gray-400 hover:text-gray-600">
@@ -508,8 +508,8 @@ export default function Chat() {
                 key={session.id}
                 onClick={() => handleSelectSession(session.id)}
                 className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm text-left transition-colors ${currentSessionId === session.id
-                    ? "bg-emerald-50 text-emerald-800 font-medium"
-                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  ? "bg-emerald-50 text-emerald-800 font-medium"
+                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                   }`}
                 style={{ cursor: "pointer" }}
               >
@@ -709,8 +709,8 @@ export default function Chat() {
                     </div>
                     <div
                       className={`max-w-none text-[15px] leading-relaxed ${m.role === "user"
-                          ? "whitespace-pre-wrap bg-white px-5 py-3.5 rounded-2xl rounded-tr-sm text-gray-800 shadow-sm border border-gray-100"
-                          : "text-gray-800 pt-1 prose prose-sm prose-gray max-w-none"
+                        ? "whitespace-pre-wrap bg-white px-5 py-3.5 rounded-2xl rounded-tr-sm text-gray-800 shadow-sm border border-gray-100"
+                        : "text-gray-800 pt-1 prose prose-sm prose-gray max-w-none"
                         }`}
                     >
                       {m.role === "user" ? (
