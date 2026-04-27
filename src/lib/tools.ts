@@ -53,7 +53,7 @@ export const RETAIL_TOOLS = [
         period: {
           type: "string",
           description:
-            "Format YYYY-MM, bulan yang dianalisis, default bulan ini",
+            "Format YYYY-MM, bulan yang dianalisis. Jika tidak ada, fallback ke rentang Januari hingga bulan berjalan tahun ini.",
         },
         category: {
           type: "string",

@@ -174,7 +174,10 @@ BEGIN
     SUM(s.revenue)::BIGINT  AS total_revenue
   FROM sales s
   JOIN products p ON s.product_id = p.id
-  WHERE TO_CHAR(s.sold_at, 'YYYY-MM') = p_period
+  WHERE (
+    (position('..' IN p_period) > 0 AND TO_CHAR(s.sold_at, 'YYYY-MM') BETWEEN split_part(p_period, '..', 1) AND split_part(p_period, '..', 2))
+    OR (position('..' IN p_period) = 0 AND TO_CHAR(s.sold_at, 'YYYY-MM') = p_period)
+  )
     AND (p_category IS NULL OR p_category = 'semua' OR p.category = p_category)
   GROUP BY p.id, p.name, p.slug, p.category
   ORDER BY

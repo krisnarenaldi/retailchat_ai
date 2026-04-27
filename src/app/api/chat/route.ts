@@ -132,7 +132,15 @@ async function executeTool(
   }
 
   if (name === "get_top_products") {
-    const { period, category, metric, limit = 10 } = input;
+    let { period, category, metric, limit = 10 } = input;
+
+    if (!period) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      period = `${year}-01..${year}-${month}`;
+      console.log(`[tool] ${name} missing period, defaulting to`, period);
+    }
 
     const { data, error } = await supabase.rpc("get_top_products", {
       p_period: period,
