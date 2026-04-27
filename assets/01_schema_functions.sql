@@ -201,20 +201,29 @@ BEGIN
     RETURN QUERY
     SELECT p.category::TEXT, SUM(s.revenue)::BIGINT, SUM(s.quantity)::BIGINT
     FROM sales s JOIN products p ON s.product_id = p.id
-    WHERE TO_CHAR(s.sold_at, 'YYYY-MM') = p_period
+    WHERE (
+      (position('..' IN p_period) > 0 AND TO_CHAR(s.sold_at, 'YYYY-MM') BETWEEN split_part(p_period, '..', 1) AND split_part(p_period, '..', 2))
+      OR (position('..' IN p_period) = 0 AND TO_CHAR(s.sold_at, 'YYYY-MM') = p_period)
+    )
     GROUP BY p.category ORDER BY SUM(s.revenue) DESC;
   ELSIF p_breakdown = 'product' THEN
     RETURN QUERY
     SELECT p.name::TEXT, SUM(s.revenue)::BIGINT, SUM(s.quantity)::BIGINT
     FROM sales s JOIN products p ON s.product_id = p.id
-    WHERE TO_CHAR(s.sold_at, 'YYYY-MM') = p_period
+    WHERE (
+      (position('..' IN p_period) > 0 AND TO_CHAR(s.sold_at, 'YYYY-MM') BETWEEN split_part(p_period, '..', 1) AND split_part(p_period, '..', 2))
+      OR (position('..' IN p_period) = 0 AND TO_CHAR(s.sold_at, 'YYYY-MM') = p_period)
+    )
     GROUP BY p.name ORDER BY SUM(s.revenue) DESC LIMIT 15;
   ELSIF p_breakdown = 'week' THEN
     RETURN QUERY
     SELECT TO_CHAR(DATE_TRUNC('week', s.sold_at), 'DD Mon')::TEXT,
            SUM(s.revenue)::BIGINT, SUM(s.quantity)::BIGINT
     FROM sales s
-    WHERE TO_CHAR(s.sold_at, 'YYYY-MM') = p_period
+    WHERE (
+      (position('..' IN p_period) > 0 AND TO_CHAR(s.sold_at, 'YYYY-MM') BETWEEN split_part(p_period, '..', 1) AND split_part(p_period, '..', 2))
+      OR (position('..' IN p_period) = 0 AND TO_CHAR(s.sold_at, 'YYYY-MM') = p_period)
+    )
     GROUP BY DATE_TRUNC('week', s.sold_at) ORDER BY DATE_TRUNC('week', s.sold_at);
   END IF;
 END;
