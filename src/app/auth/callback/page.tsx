@@ -1,18 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Sparkles, Loader2, AlertCircle } from "lucide-react";
+import { Suspense } from "react";
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("Menghubungkan akun Anda...");
 
   useEffect(() => {
-    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-    const code = params?.get("code");
-    const next = params?.get("next") || "/";
+    const code = searchParams.get("code");
+    const next = searchParams.get("next") || "/";
 
     if (!code) {
       setStatus("error");
@@ -21,22 +22,36 @@ export default function AuthCallbackPage() {
     }
 
     const handleCallback = async () => {
-      const response = await fetch(`/api/auth/callback?code=${encodeURIComponent(code)}&next=${encodeURIComponent(next)}`);
-      const result = await response.json();
-      if (!response.ok || !result.success) {
-        console.error("Auth callback error", result.error);
-        setStatus("error");
-        setMessage("Terjadi kesalahan saat masuk. Silakan coba lagi.");
-        return;
-      }
+      try {
+        const response = await fetch(`/api/auth/callback?code=${encodeURIComponent(code)}&next=${encodeURIComponent(next)}`);
+        
+        let result;
+        try {
+          result = await response.json();
+        } catch (e) {
+          throw new Error("Respon server tidak valid");
+        }
 
-      setStatus("success");
-      setMessage("Login berhasil! Mengarahkan Anda ke dasbor...");
-      router.replace(result.next || next);
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || "Gagal menukar kode otentikasi");
+        }
+
+        setStatus("success");
+        setMessage("Login berhasil! Mengarahkan Anda ke dasbor...");
+        
+        // Give a small delay for the user to see the success message
+        setTimeout(() => {
+          router.replace(result.next || next);
+        }, 500);
+      } catch (err: any) {
+        console.error("Auth callback error:", err);
+        setStatus("error");
+        setMessage(err.message || "Terjadi kesalahan saat masuk. Silakan coba lagi.");
+      }
     };
 
     void handleCallback();
-  }, [router]);
+  }, [router, searchParams]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-8 text-slate-900">
@@ -80,5 +95,17 @@ export default function AuthCallbackPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+      </div>
+    }>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }
