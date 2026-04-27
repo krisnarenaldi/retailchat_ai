@@ -600,7 +600,7 @@ export default function Chat() {
         {/* Chat Area */}
         <main className="flex-1 overflow-y-auto w-full">
           {messages.length === 0 ? (
-            <div className="flex h-full flex-col items-center justify-center text-center px-4 space-y-8 max-w-3xl mx-auto py-12">
+            <div className="flex min-h-full flex-col items-center justify-center text-center px-4 space-y-8 max-w-3xl mx-auto py-12 pb-32">
               <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-50 ring-1 ring-emerald-100 shadow-sm">
                 <Sparkles className="h-10 w-10 text-emerald-600" />
               </div>
@@ -643,7 +643,7 @@ export default function Chat() {
               </div>
             </div>
           ) : (
-            <div className="mx-auto flex w-full max-w-3xl flex-col pb-24 pt-8">
+            <div className="mx-auto flex w-full max-w-3xl flex-col pb-32 pt-8">
               {messages.map((m) => (
                 <div
                   key={m.id}
