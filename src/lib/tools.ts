@@ -46,6 +46,7 @@ export const RETAIL_TOOLS = [
                  - "produk apa yang paling laku"
                  - "best seller bulan ini"
                  - "produk apa yang paling banyak pendapatannya"
+                 - "top products by revenue vs quantity"
                  - "ranking penjualan"`,
     input_schema: {
       type: "object",

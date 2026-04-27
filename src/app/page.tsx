@@ -102,6 +102,7 @@ const exportTableToCsv = (table: HTMLTableElement, filename: string) => {
 const SUGGESTIONS = [
   "Bandingkan penjualan bulan ini vs bulan lalu",
   "Tampilkan top 5 produk kategori anak",
+  "Top products by revenue vs quantity",
   "Breakdown revenue per produk bulan ini"
 ];
 
