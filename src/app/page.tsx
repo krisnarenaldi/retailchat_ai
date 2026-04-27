@@ -193,10 +193,11 @@ function RetailChart({ config }: { config: ChartConfig }) {
         )}
       </ResponsiveContainer>
     </div>
+  </div>
   );
 }
 
-function MarkdownTable({ children }: { children: React.ReactNode }) {
+function MarkdownTable({ children }: { children?: React.ReactNode }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const handleExportCsv = () => {
