@@ -36,6 +36,55 @@ const CHART_COLORS = [
   "#14b8a6",
 ];
 
+const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
+  const serializer = new XMLSerializer();
+  const svgString = serializer.serializeToString(svgElement);
+  const svgData = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
+
+  const image = new Image();
+  image.src = svgData;
+
+  return new Promise<void>((resolve, reject) => {
+    image.onload = () => {
+      const rect = svgElement.getBoundingClientRect();
+      const canvas = document.createElement("canvas");
+      canvas.width = rect.width * 2;
+      canvas.height = rect.height * 2;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("Canvas context unavailable"));
+      ctx.scale(2, 2);
+      ctx.drawImage(image, 0, 0, rect.width, rect.height);
+      const pngData = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = pngData;
+      link.download = filename;
+      link.click();
+      resolve();
+    };
+    image.onerror = (error) => reject(error);
+  });
+};
+
+const exportTableToCsv = (table: HTMLTableElement, filename: string) => {
+  const rows = Array.from(table.querySelectorAll("tr"));
+  const csv = rows
+    .map((row) => {
+      const cells = Array.from(row.querySelectorAll("th, td"));
+      return cells
+        .map((cell) => `"${(cell.textContent || "").trim().replace(/"/g, '""')}"`)
+        .join(",");
+    })
+    .join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
 const SUGGESTIONS = [
   "Bandingkan penjualan bulan ini vs bulan lalu",
   "Tampilkan top 5 produk kategori anak",
@@ -59,12 +108,29 @@ type ChatSession = {
 
 function RetailChart({ config }: { config: ChartConfig }) {
   const { chart_type, data, title, x_key, y_key } = config;
+  const chartRef = useRef<HTMLDivElement>(null);
   if (!data || data.length === 0) return null;
+
+  const handleExportChart = async () => {
+    const svg = chartRef.current?.querySelector("svg");
+    if (!svg) return;
+    await exportSvgAsPng(svg as SVGSVGElement, `${title}.png`);
+  };
 
   return (
     <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-      <p className="mb-3 text-sm font-semibold text-gray-700">{title}</p>
-      <ResponsiveContainer width="100%" height={260}>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-gray-700">{title}</p>
+        <button
+          type="button"
+          onClick={handleExportChart}
+          className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-50"
+        >
+          Export PNG
+        </button>
+      </div>
+      <div ref={chartRef}>
+        <ResponsiveContainer width="100%" height={260}>
         {chart_type === "pie" ? (
           <PieChart>
             <Pie
@@ -130,6 +196,32 @@ function RetailChart({ config }: { config: ChartConfig }) {
   );
 }
 
+function MarkdownTable({ children }: { children: React.ReactNode }) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const handleExportCsv = () => {
+    const table = wrapperRef.current?.querySelector("table");
+    if (table) {
+      exportTableToCsv(table as HTMLTableElement, "table-data.csv");
+    }
+  };
+
+  return (
+    <div className="overflow-x-auto my-3" ref={wrapperRef}>
+      <div className="flex justify-end mb-2">
+        <button
+          type="button"
+          onClick={handleExportCsv}
+          className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-50"
+        >
+          Export CSV
+        </button>
+      </div>
+      <table className="w-full border-collapse text-sm">{children}</table>
+    </div>
+  );
+}
+
 export default function Chat() {
   const router = useRouter();
   const [limitExceeded, setLimitExceeded] = useState(false);
@@ -139,6 +231,7 @@ export default function Chat() {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string>("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   // Initialize session ID only on client to avoid hydration mismatch
   useEffect(() => {
@@ -227,9 +320,17 @@ export default function Chat() {
   }, [router]);
 
   const handleLogout = async () => {
+    if (!confirm("Are you sure you want to sign out?")) {
+      return;
+    }
+
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/login");
+  };
+
+  const handleExportPdf = () => {
+    window.print();
   };
 
   const handleNewChat = () => {
@@ -273,7 +374,7 @@ export default function Chat() {
 
       {/* Sidebar */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-30 w-72 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 flex flex-col ${
+        className={`fixed inset-y-0 left-0 z-30 w-72 bg-white border-r border-gray-200 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 flex flex-col print-hidden ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -349,7 +450,7 @@ export default function Chat() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden w-full relative">
         {/* Header */}
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-gray-200 bg-white/80 px-4 md:px-6 backdrop-blur-xl z-10 sticky top-0 shadow-sm">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-gray-200 bg-white/80 px-4 md:px-6 backdrop-blur-xl z-10 sticky top-0 shadow-sm print-hidden">
           <div className="flex items-center space-x-3">
             <button 
               onClick={() => setIsSidebarOpen(true)}
@@ -360,6 +461,41 @@ export default function Chat() {
             <span className="font-medium text-sm text-gray-800 md:hidden">
               AI Workspace
             </span>
+          </div>
+
+          <div className="hidden md:flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-50"
+            >
+              Export PDF
+            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+                className="flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-600 transition hover:bg-gray-50"
+              >
+                <User className="h-4 w-4" />
+                Profile
+              </button>
+              {isProfileMenuOpen && (
+                <div className="absolute right-0 mt-2 w-48 rounded-2xl border border-gray-200 bg-white shadow-lg">
+                  <div className="px-4 py-3 text-sm text-gray-700">
+                    {user?.email}
+                  </div>
+                  <div className="border-t border-gray-100" />
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50"
+                  >
+                    Log out
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -432,13 +568,7 @@ export default function Chat() {
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
                             components={{
-                              table: ({ children }) => (
-                                <div className="overflow-x-auto my-3">
-                                  <table className="w-full border-collapse text-sm">
-                                    {children}
-                                  </table>
-                                </div>
-                              ),
+                              table: MarkdownTable,
                               thead: ({ children }) => (
                                 <thead className="bg-emerald-50">
                                   {children}
@@ -521,7 +651,7 @@ export default function Chat() {
         </main>
 
         {/* Input Area */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#F9FAFB] via-[#F9FAFB]/95 to-transparent pb-6 pt-12 px-4 z-10">
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#F9FAFB] via-[#F9FAFB]/95 to-transparent pb-6 pt-12 px-4 z-10 print-hidden">
           <div className="mx-auto w-full max-w-3xl relative">
             <form
               onSubmit={handleSubmit}
