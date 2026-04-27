@@ -42,25 +42,24 @@ const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
   // Function to inline computed styles into the SVG clone
   const inlineStyles = (source: Element, target: Element) => {
     const computed = window.getComputedStyle(source);
-    // Essential styles for SVG rendering - including more props for Recharts
+    // Comprehensive styles for SVG rendering
     const styleProps = [
       "fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap", "stroke-linejoin",
       "font-family", "font-size", "font-weight", "text-anchor",
-      "opacity", "visibility", "display", "stop-color", "stop-opacity"
+      "opacity", "visibility", "display", "stop-color", "stop-opacity", "filter", "clip-path"
     ];
     
     for (const prop of styleProps) {
       const value = computed.getPropertyValue(prop);
-      if (value && value !== "none" && value !== "normal") {
+      // IMPORTANT: We must include "none" because SVG defaults some properties to black/visible
+      if (value && value !== "normal") {
         target.setAttribute(prop, value);
       }
     }
 
-    // Specific fix for text color which often defaults to black but might be styled via CSS
+    // Specific fix for text
     if (source.tagName.toLowerCase() === "text") {
       target.setAttribute("fill", computed.fill || "black");
-      target.setAttribute("font-family", computed.fontFamily);
-      target.setAttribute("font-size", computed.fontSize);
     }
 
     for (let i = 0; i < source.children.length; i++) {
@@ -70,17 +69,23 @@ const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
 
   inlineStyles(svgElement, clone);
 
-  // Ensure namespaces are present
-  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-  clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
-
+  // Add a white background rectangle as the first element inside the SVG
   const rect = svgElement.getBoundingClientRect();
   const width = rect.width || 800;
   const height = rect.height || 600;
-  
+
+  const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+  bgRect.setAttribute("width", "100%");
+  bgRect.setAttribute("height", "100%");
+  bgRect.setAttribute("fill", "white");
+  clone.insertBefore(bgRect, clone.firstChild);
+
+  // Ensure namespaces and dimensions
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
   clone.setAttribute("width", String(width));
   clone.setAttribute("height", String(height));
-  // Preserve viewBox if it exists, otherwise create one
+  
   if (!clone.getAttribute("viewBox")) {
     clone.setAttribute("viewBox", `0 0 ${width} ${height}`);
   }
@@ -88,7 +93,6 @@ const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
   const serializer = new XMLSerializer();
   const svgString = serializer.serializeToString(clone);
   
-  // Use Blob instead of base64 for better compatibility and UTF-8 support
   const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(svgBlob);
 
@@ -97,7 +101,8 @@ const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
   return new Promise<void>((resolve, reject) => {
     image.onload = () => {
       const canvas = document.createElement("canvas");
-      const scale = window.devicePixelRatio || 2;
+      // Use a consistent scale for high quality without being excessive
+      const scale = 2; 
       canvas.width = width * scale;
       canvas.height = height * scale;
       const ctx = canvas.getContext("2d");
@@ -106,7 +111,7 @@ const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
         return reject(new Error("Canvas context unavailable"));
       }
       
-      // Draw white background
+      // Draw white background on canvas as fallback
       ctx.fillStyle = "white";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
