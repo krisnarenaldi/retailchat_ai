@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Retail Analytics AI",
+  title: "Retail Sales Analytics with AI",
   description: "Text to sql analytic",
 };
 
