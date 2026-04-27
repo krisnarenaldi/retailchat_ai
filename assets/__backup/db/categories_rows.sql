@@ -1,0 +1,1 @@
+INSERT INTO "public"."categories" ("id", "name", "parent_id", "created_at") VALUES (1, 'Semua', null, '2026-03-30 06:42:38.125729+00'), (2, 'Dewasa', null, '2026-03-30 06:42:38.125729+00'), (3, 'Anak', null, '2026-03-30 06:42:38.125729+00');

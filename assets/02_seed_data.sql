@@ -1,5 +1,6 @@
 -- RetailChat AI — Seed Data
 -- 4. SEED DATA
+-- db pass: iTrTaxj52kOUY11l
 -- ============================================================
 
 -- Categories
