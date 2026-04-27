@@ -247,6 +247,7 @@ export default function Chat() {
   const [currentSessionId, setCurrentSessionId] = useState<string>("");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   // Initialize session ID only on client to avoid hydration mismatch
   useEffect(() => {
@@ -335,13 +336,14 @@ export default function Chat() {
   }, [router]);
 
   const handleLogout = async () => {
-    if (!confirm("Are you sure you want to sign out?")) {
-      return;
-    }
-
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/login");
+  };
+
+  const confirmLogout = () => {
+    setIsLogoutModalOpen(false);
+    void handleLogout();
   };
 
   const handleExportPdf = () => {
@@ -451,7 +453,7 @@ export default function Chat() {
               {user.email}
             </div>
             <button
-              onClick={handleLogout}
+              onClick={() => setIsLogoutModalOpen(true)}
               className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
               title="Sign out"
               style={{ cursor: "pointer" }}
@@ -503,7 +505,10 @@ export default function Chat() {
                   <div className="border-t border-gray-100" />
                   <button
                     type="button"
-                    onClick={handleLogout}
+                    onClick={() => {
+                      setIsProfileMenuOpen(false);
+                      setIsLogoutModalOpen(true);
+                    }}
                     className="w-full px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50"
                   >
                     Log out
@@ -709,6 +714,45 @@ export default function Chat() {
           </div>
         </div>
       </div>
+
+      {isLogoutModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl ring-1 ring-black/10">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Confirm Logout</h2>
+                <p className="mt-2 text-sm text-gray-600">
+                  Are you sure you want to sign out? Your current session will end and you will be redirected to the login page.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLogoutModalOpen(false)}
+                className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Close logout confirmation"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsLogoutModalOpen(false)}
+                className="rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmLogout}
+                className="rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
+              >
+                Log out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
