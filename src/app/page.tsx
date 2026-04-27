@@ -38,44 +38,96 @@ const CHART_COLORS = [
 
 const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
   const clone = svgElement.cloneNode(true) as SVGSVGElement;
-  if (!clone.getAttribute("xmlns")) {
-    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-  }
-  if (!clone.getAttribute("xmlns:xlink")) {
-    clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
-  }
+  
+  // Function to inline computed styles into the SVG clone
+  const inlineStyles = (source: Element, target: Element) => {
+    const computed = window.getComputedStyle(source);
+    // Essential styles for SVG rendering - including more props for Recharts
+    const styleProps = [
+      "fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap", "stroke-linejoin",
+      "font-family", "font-size", "font-weight", "text-anchor",
+      "opacity", "visibility", "display", "stop-color", "stop-opacity"
+    ];
+    
+    for (const prop of styleProps) {
+      const value = computed.getPropertyValue(prop);
+      if (value && value !== "none" && value !== "normal") {
+        target.setAttribute(prop, value);
+      }
+    }
+
+    // Specific fix for text color which often defaults to black but might be styled via CSS
+    if (source.tagName.toLowerCase() === "text") {
+      target.setAttribute("fill", computed.fill || "black");
+      target.style.fontFamily = computed.fontFamily;
+      target.style.fontSize = computed.fontSize;
+    }
+
+    for (let i = 0; i < source.children.length; i++) {
+      inlineStyles(source.children[i], target.children[i]);
+    }
+  };
+
+  inlineStyles(svgElement, clone);
+
+  // Ensure namespaces are present
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
 
   const rect = svgElement.getBoundingClientRect();
-  const width = rect.width || Number(clone.getAttribute("width")) || 800;
-  const height = rect.height || Number(clone.getAttribute("height")) || 600;
+  const width = rect.width || 800;
+  const height = rect.height || 600;
+  
   clone.setAttribute("width", String(width));
   clone.setAttribute("height", String(height));
-  clone.setAttribute("viewBox", clone.getAttribute("viewBox") || `0 0 ${width} ${height}`);
+  // Preserve viewBox if it exists, otherwise create one
+  if (!clone.getAttribute("viewBox")) {
+    clone.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  }
 
   const serializer = new XMLSerializer();
   const svgString = serializer.serializeToString(clone);
-  const svgData = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
+  
+  // Use Blob instead of base64 for better compatibility and UTF-8 support
+  const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(svgBlob);
 
   const image = new Image();
-  image.src = svgData;
-
+  
   return new Promise<void>((resolve, reject) => {
     image.onload = () => {
       const canvas = document.createElement("canvas");
-      canvas.width = width * 2;
-      canvas.height = height * 2;
+      const scale = window.devicePixelRatio || 2;
+      canvas.width = width * scale;
+      canvas.height = height * scale;
       const ctx = canvas.getContext("2d");
-      if (!ctx) return reject(new Error("Canvas context unavailable"));
-      ctx.scale(2, 2);
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        return reject(new Error("Canvas context unavailable"));
+      }
+      
+      // Draw white background
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      ctx.scale(scale, scale);
       ctx.drawImage(image, 0, 0, width, height);
+      
       const pngData = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = pngData;
       link.download = filename;
       link.click();
+      
+      URL.revokeObjectURL(url);
       resolve();
     };
-    image.onerror = (error) => reject(error);
+    image.onerror = (error) => {
+      console.error("Image loading failed for PNG export:", error);
+      URL.revokeObjectURL(url);
+      reject(error);
+    };
+    image.src = url;
   });
 };
 
