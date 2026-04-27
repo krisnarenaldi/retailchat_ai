@@ -38,7 +38,7 @@ const CHART_COLORS = [
 
 const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
   const clone = svgElement.cloneNode(true) as SVGSVGElement;
-  
+
   // Function to inline computed styles into the SVG clone
   const inlineStyles = (source: Element, target: Element) => {
     const computed = window.getComputedStyle(source);
@@ -48,7 +48,7 @@ const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
       "font-family", "font-size", "font-weight", "text-anchor",
       "opacity", "visibility", "display", "stop-color", "stop-opacity", "filter", "clip-path"
     ];
-    
+
     for (const prop of styleProps) {
       const value = computed.getPropertyValue(prop);
       // IMPORTANT: We must include "none" because SVG defaults some properties to black/visible
@@ -85,24 +85,24 @@ const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
   clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
   clone.setAttribute("width", String(width));
   clone.setAttribute("height", String(height));
-  
+
   if (!clone.getAttribute("viewBox")) {
     clone.setAttribute("viewBox", `0 0 ${width} ${height}`);
   }
 
   const serializer = new XMLSerializer();
   const svgString = serializer.serializeToString(clone);
-  
+
   const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(svgBlob);
 
   const image = new Image();
-  
+
   return new Promise<void>((resolve, reject) => {
     image.onload = () => {
       const canvas = document.createElement("canvas");
       // Use a consistent scale for high quality without being excessive
-      const scale = 2; 
+      const scale = 2;
       canvas.width = width * scale;
       canvas.height = height * scale;
       const ctx = canvas.getContext("2d");
@@ -110,20 +110,20 @@ const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
         URL.revokeObjectURL(url);
         return reject(new Error("Canvas context unavailable"));
       }
-      
+
       // Draw white background on canvas as fallback
       ctx.fillStyle = "white";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
+
       ctx.scale(scale, scale);
       ctx.drawImage(image, 0, 0, width, height);
-      
+
       const pngData = canvas.toDataURL("image/png");
       const link = document.createElement("a");
       link.href = pngData;
       link.download = filename;
       link.click();
-      
+
       URL.revokeObjectURL(url);
       resolve();
     };
@@ -203,69 +203,69 @@ function RetailChart({ config }: { config: ChartConfig }) {
       </div>
       <div ref={chartRef}>
         <ResponsiveContainer width="100%" height={260}>
-        {chart_type === "pie" ? (
-          <PieChart>
-            <Pie
-              data={data}
-              dataKey={y_key}
-              nameKey={x_key}
-              cx="50%"
-              cy="50%"
-              outerRadius={90}
-              label={({ name, percent }) =>
-                `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
-              }
-            >
-              {data.map((_, i) => (
-                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip />
-            <Legend />
-          </PieChart>
-        ) : chart_type === "line" ? (
-          <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis
-              dataKey={x_key}
-              tick={{ fontSize: 11 }}
-              interval="preserveStartEnd"
-            />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip />
-            <Legend />
-            <Line
-              type="monotone"
-              dataKey={y_key}
-              stroke={CHART_COLORS[0]}
-              strokeWidth={2}
-              dot={{ r: 3 }}
-            />
-          </LineChart>
-        ) : (
-          <BarChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis
-              dataKey={x_key}
-              tick={{ fontSize: 11 }}
-              interval={0}
-              angle={data.length > 6 ? -30 : 0}
-              textAnchor={data.length > 6 ? "end" : "middle"}
-              height={data.length > 6 ? 50 : 30}
-            />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey={y_key} radius={[4, 4, 0, 0]}>
-              {data.map((_, i) => (
-                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-              ))}
-            </Bar>
-          </BarChart>
-        )}
-      </ResponsiveContainer>
+          {chart_type === "pie" ? (
+            <PieChart>
+              <Pie
+                data={data}
+                dataKey={y_key}
+                nameKey={x_key}
+                cx="50%"
+                cy="50%"
+                outerRadius={90}
+                label={({ name, percent }) =>
+                  `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
+                }
+              >
+                {data.map((_, i) => (
+                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          ) : chart_type === "line" ? (
+            <LineChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis
+                dataKey={x_key}
+                tick={{ fontSize: 11 }}
+                interval="preserveStartEnd"
+              />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey={y_key}
+                stroke={CHART_COLORS[0]}
+                strokeWidth={2}
+                dot={{ r: 3 }}
+              />
+            </LineChart>
+          ) : (
+            <BarChart data={data}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis
+                dataKey={x_key}
+                tick={{ fontSize: 11 }}
+                interval={0}
+                angle={data.length > 6 ? -30 : 0}
+                textAnchor={data.length > 6 ? "end" : "middle"}
+                height={data.length > 6 ? 50 : 30}
+              />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey={y_key} radius={[4, 4, 0, 0]}>
+                {data.map((_, i) => (
+                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                ))}
+              </Bar>
+            </BarChart>
+          )}
+        </ResponsiveContainer>
+      </div>
     </div>
-  </div>
   );
 }
 
@@ -436,7 +436,7 @@ export default function Chat() {
       <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-[#FAFBFC] text-slate-900">
         <div className="absolute -top-[10%] -left-[10%] h-[40%] w-[40%] rounded-full bg-emerald-500/5 blur-[120px] animate-pulse" />
         <div className="absolute -bottom-[10%] -right-[10%] h-[40%] w-[40%] rounded-full bg-blue-500/5 blur-[120px]" />
-        
+
         <div className="relative z-10 flex flex-col items-center gap-6 rounded-[2.5rem] border border-slate-200/60 bg-white/70 p-12 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.06)] backdrop-blur-3xl transition-all duration-500 animate-in fade-in zoom-in-95">
           <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-emerald-50 ring-1 ring-emerald-100/50 shadow-inner">
             <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-emerald-600 border-t-transparent" />
@@ -458,17 +458,16 @@ export default function Chat() {
     <div className="flex h-screen w-full bg-[#F9FAFB] text-gray-900 font-sans selection:bg-gray-200 overflow-hidden">
       {/* Sidebar Overlay (Mobile) */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/20 backdrop-blur-sm z-20 md:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <aside 
-        className={`fixed inset-y-0 left-0 z-30 w-72 bg-white/90 border-r border-slate-200/60 backdrop-blur-2xl transform transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] md:relative md:translate-x-0 flex flex-col print-hidden ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+      <aside
+        className={`fixed inset-y-0 left-0 z-30 w-72 bg-white/90 border-r border-slate-200/60 backdrop-blur-2xl transform transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] md:relative md:translate-x-0 flex flex-col print-hidden ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <div className="p-6 border-b border-slate-100/50 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -476,7 +475,7 @@ export default function Chat() {
               <Sparkles className="h-5 w-5 text-white" />
             </div>
             <span className="font-bold text-[17px] tracking-tight text-slate-800 uppercase">
-              Retail AI
+              Retail Sales Analytics
             </span>
           </div>
           <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-1 text-gray-400 hover:text-gray-600">
@@ -508,11 +507,10 @@ export default function Chat() {
               <button
                 key={session.id}
                 onClick={() => handleSelectSession(session.id)}
-                className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm text-left transition-colors ${
-                  currentSessionId === session.id
+                className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm text-left transition-colors ${currentSessionId === session.id
                     ? "bg-emerald-50 text-emerald-800 font-medium"
                     : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                }`}
+                  }`}
                 style={{ cursor: "pointer" }}
               >
                 <MessageSquare className={`h-4 w-4 shrink-0 ${currentSessionId === session.id ? 'text-emerald-600' : 'text-gray-400'}`} />
@@ -526,9 +524,9 @@ export default function Chat() {
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               {user.user_metadata?.avatar_url ? (
-                <img 
-                  src={user.user_metadata.avatar_url} 
-                  alt={user.user_metadata.full_name || "Profile"} 
+                <img
+                  src={user.user_metadata.avatar_url}
+                  alt={user.user_metadata.full_name || "Profile"}
                   className="h-8 w-8 rounded-full border border-gray-200"
                 />
               ) : (
@@ -562,7 +560,7 @@ export default function Chat() {
         {/* Header */}
         <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200/60 bg-white/70 px-4 md:px-8 backdrop-blur-3xl z-10 sticky top-0 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)] print-hidden">
           <div className="flex items-center space-x-4">
-            <button 
+            <button
               onClick={() => setIsSidebarOpen(true)}
               className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100/80 rounded-xl transition-colors"
             >
@@ -591,9 +589,9 @@ export default function Chat() {
                 className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 transition-all hover:bg-slate-50 hover:border-slate-300 hover:shadow-sm"
               >
                 {user.user_metadata?.avatar_url ? (
-                  <img 
-                    src={user.user_metadata.avatar_url} 
-                    alt="Profile" 
+                  <img
+                    src={user.user_metadata.avatar_url}
+                    alt="Profile"
                     className="h-5 w-5 rounded-lg object-cover"
                   />
                 ) : (
@@ -656,7 +654,7 @@ export default function Chat() {
                   <p className="mt-2 text-sm text-slate-500 leading-relaxed">Bandingkan penjualan, tampilkan produk stok rendah, dan proyeksikan revenue dengan bahasa alami.</p>
                 </div>
                 <div className="rounded-[2rem] border border-slate-200/60 bg-white/60 p-6 text-left shadow-sm backdrop-blur-sm transition-all hover:shadow-md">
-                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 mb-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 mb-4">
                     <Bot className="h-5 w-5" />
                   </div>
                   <p className="text-sm font-bold text-slate-900 uppercase tracking-tight">Eksplorasi Data</p>
@@ -683,21 +681,19 @@ export default function Chat() {
               {messages.map((m) => (
                 <div
                   key={m.id}
-                  className={`flex w-full px-4 py-6 md:px-0 ${
-                    m.role === "user" ? "justify-end" : "justify-start"
-                  }`}
+                  className={`flex w-full px-4 py-6 md:px-0 ${m.role === "user" ? "justify-end" : "justify-start"
+                    }`}
                 >
                   <div
-                    className={`flex max-w-[85%] sm:max-w-2xl gap-4 ${
-                      m.role === "user" ? "flex-row-reverse" : "flex-row"
-                    }`}
+                    className={`flex max-w-[85%] sm:max-w-2xl gap-4 ${m.role === "user" ? "flex-row-reverse" : "flex-row"
+                      }`}
                   >
                     <div className="shrink-0 flex items-start">
                       {m.role === "user" ? (
                         user.user_metadata?.avatar_url ? (
-                          <img 
-                            src={user.user_metadata.avatar_url} 
-                            alt="You" 
+                          <img
+                            src={user.user_metadata.avatar_url}
+                            alt="You"
                             className="h-8 w-8 rounded-full border border-gray-200 shadow-sm"
                           />
                         ) : (
@@ -712,11 +708,10 @@ export default function Chat() {
                       )}
                     </div>
                     <div
-                      className={`max-w-none text-[15px] leading-relaxed ${
-                        m.role === "user"
+                      className={`max-w-none text-[15px] leading-relaxed ${m.role === "user"
                           ? "whitespace-pre-wrap bg-white px-5 py-3.5 rounded-2xl rounded-tr-sm text-gray-800 shadow-sm border border-gray-100"
                           : "text-gray-800 pt-1 prose prose-sm prose-gray max-w-none"
-                      }`}
+                        }`}
                     >
                       {m.role === "user" ? (
                         m.content
