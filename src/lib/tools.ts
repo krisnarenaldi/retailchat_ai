@@ -55,6 +55,11 @@ export const RETAIL_TOOLS = [
           description:
             "Format YYYY-MM, bulan yang dianalisis. Jika tidak ada, fallback ke rentang Januari hingga bulan berjalan tahun ini.",
         },
+        product: {
+          type: "string",
+          description:
+            "Nama produk atau jenis produk untuk difilter, misalnya 'jaket' atau 'kaos'.",
+        },
         category: {
           type: "string",
           description: "Filter kategori: 'dewasa', 'anak', atau 'semua'",
@@ -95,6 +100,11 @@ Gunakan tool ini ketika user tanya:
           description:
             "Format YYYY-MM, bulan yang dianalisis, default bulan ini",
         },
+        product: {
+          type: "string",
+          description:
+            "Nama produk untuk difilter, misalnya 'jaket' atau 'sepatu'.",
+        },
         breakdown: {
           type: "string",
           enum: ["kategori", "produk", "minggu"],
@@ -121,6 +131,11 @@ Gunakan tool ini ketika user tanya:
     input_schema: {
       type: "object",
       properties: {
+        product: {
+          type: "string",
+          description:
+            "Nama produk untuk difilter, misalnya 'jaket' atau 'kaos'.",
+        },
         threshold: {
           type: "number",
           description: "Batas stok untuk menandai item rendah. Default 10.",
