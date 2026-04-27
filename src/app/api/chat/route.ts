@@ -16,7 +16,7 @@ Kamu punya akses ke data penjualan. Selalu tampilkan angka dalam format Rupiah j
 
 ATURAN PENGGUNAAN TOOL:
 1. Jika user bertanya tentang data penjualan, LANGSUNG panggil tool yang sesuai — jangan hanya narasi.
-2. Setelah mendapat data dari tool (get_top_products, query_sales_comparison, get_revenue_breakdown),
+2. Setelah mendapat data dari tool (get_top_products, query_sales_comparison, get_revenue_breakdown, get_low_stock_items),
    SELALU panggil generate_chart_config dengan data tersebut untuk membuat visualisasi chart.
 3. Pilih chart_type yang tepat: "bar" untuk perbandingan produk, "line" untuk tren waktu, "pie" untuk proporsi/persentase.
 4. Gunakan nama kolom yang BENAR dari data hasil tool untuk x_key dan y_key.
@@ -167,6 +167,18 @@ async function executeTool(
     const { data, error } = await supabase.rpc("get_revenue_breakdown", {
       p_period: period,
       p_breakdown: breakdown,
+      p_category: category,
+    });
+
+    if (error) throw new Error(error.message);
+    return data;
+  }
+
+  if (name === "get_low_stock_items") {
+    const { threshold = 10, category = "semua" } = input;
+
+    const { data, error } = await supabase.rpc("get_low_stock_items", {
+      p_threshold: threshold,
       p_category: category,
     });
 

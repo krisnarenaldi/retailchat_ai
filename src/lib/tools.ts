@@ -112,6 +112,31 @@ Gunakan tool ini ketika user tanya:
     },
   },
   {
+    name: "get_low_stock_items",
+    description: `Dapatkan daftar produk dengan stok rendah. Gunakan tool ini ketika user tanya:
+- "produk stok rendah"
+- "lihat item yang harus restock"
+- "stok produk kategori dewasa kurang dari 10"
+- "tampilkan barang dengan stok sedikit"`,
+    input_schema: {
+      type: "object",
+      properties: {
+        threshold: {
+          type: "number",
+          description: "Batas stok untuk menandai item rendah. Default 10.",
+          default: 10,
+        },
+        category: {
+          type: "string",
+          enum: ["dewasa", "anak", "semua"],
+          description:
+            "Opsional. Filter kategori tertentu: 'anak', 'dewasa', atau 'semua'. Default: 'semua'",
+        },
+      },
+      required: [],
+    },
+  },
+  {
     name: "generate_chart_config",
     description:
       "Buat konfigurasi chart untuk divisualisasikan di frontend. Panggil SETELAH mendapat data.",
