@@ -209,6 +209,7 @@ type ChatSession = {
   title: string;
   createdAt: number;
   messages: Message[];
+  reRunContent?: string;
 };
 
 function RetailChart({ config }: { config: ChartConfig }) {
@@ -384,16 +385,18 @@ export default function Chat() {
         const existingIndex = prev.findIndex((s) => s.id === currentSessionId);
         let newSessions = [...prev];
         if (existingIndex >= 0) {
+          const firstUserMsg = messages.find(m => m.role === 'user')?.content || newSessions[existingIndex].reRunContent;
           newSessions[existingIndex] = {
             ...newSessions[existingIndex],
             messages,
+            reRunContent: firstUserMsg || newSessions[existingIndex].reRunContent,
           };
         } else {
           // Create title from first user message
           const firstUserMsg = messages.find(m => m.role === 'user')?.content || "New Chat";
           const title = firstUserMsg;
           newSessions = [
-            { id: currentSessionId, title, createdAt: Date.now(), messages },
+            { id: currentSessionId, title, createdAt: Date.now(), messages, reRunContent: firstUserMsg },
             ...prev,
           ];
         }
@@ -541,10 +544,10 @@ export default function Chat() {
             </div>
           ) : (
             sessions.map((session) => (
-              <div key={session.id} className="relative group/tooltip">
+              <div key={session.id} className="relative group">
                 <button
                   onClick={() => handleSelectSession(session.id)}
-                  className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm text-left transition-colors ${currentSessionId === session.id
+                  className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm text-left transition-colors pr-10 ${currentSessionId === session.id
                     ? "bg-emerald-50 text-emerald-800 font-medium"
                     : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                     }`}
@@ -554,8 +557,22 @@ export default function Chat() {
                   <span className="truncate">{session.title}</span>
                 </button>
 
+                {session.reRunContent && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSuggestionClick(session.reRunContent!, true);
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-emerald-100 text-emerald-600 opacity-0 group-hover:opacity-100 transition-all hover:bg-emerald-600 hover:text-white"
+                    title="Re-run this chat"
+                    style={{ cursor: "pointer" }}
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                  </button>
+                )}
+
                 {session.title.length > 25 && (
-                  <div className="absolute left-8 right-2 top-full mt-1 z-50 opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 pointer-events-none">
+                  <div className="absolute left-8 right-2 top-full mt-1 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none">
                     <div className="relative bg-slate-800 text-white text-[11.5px] font-medium py-2 px-3 rounded-md shadow-lg leading-relaxed whitespace-normal break-words">
                       <div className="absolute left-4 -top-1 w-2 h-2 bg-slate-800 rotate-45" />
                       <span className="relative z-10">{session.title}</span>
