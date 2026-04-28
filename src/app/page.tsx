@@ -358,7 +358,7 @@ export default function Chat() {
         } else {
           // Create title from first user message
           const firstUserMsg = messages.find(m => m.role === 'user')?.content || "New Chat";
-          const title = firstUserMsg.slice(0, 30) + (firstUserMsg.length > 30 ? "..." : "");
+          const title = firstUserMsg;
           newSessions = [
             { id: currentSessionId, title, createdAt: Date.now(), messages },
             ...prev,
