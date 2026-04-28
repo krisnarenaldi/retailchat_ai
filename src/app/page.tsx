@@ -40,7 +40,7 @@ const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
   const clone = svgElement.cloneNode(true) as SVGSVGElement;
 
   // Function to inline computed styles into the SVG clone
-  const inlineStyles = (source: Element, target: Element) => {
+  const inlineStyles = (source: Element, target: Element, isRoot = false) => {
     const computed = window.getComputedStyle(source);
     const styleProps = [
       "fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap", "stroke-linejoin",
@@ -51,6 +51,10 @@ const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
 
     for (const prop of styleProps) {
       const value = computed.getPropertyValue(prop);
+
+      // Skip fill/stroke on the root SVG to avoid black background boxes
+      if (isRoot && (prop === "fill" || prop === "stroke")) continue;
+
       if (value && value !== "normal" && value !== "none") {
         target.setAttribute(prop, value);
       } else if (value === "none") {
@@ -61,26 +65,31 @@ const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
     // Specific handling for text elements
     if (source.tagName.toLowerCase() === "text") {
       const fill = computed.getPropertyValue("fill");
-      target.setAttribute("fill", fill || "black");
+      // If text fill is transparent or missing, default to a visible color
+      if (!fill || fill === "none" || fill === "rgba(0, 0, 0, 0)") {
+        target.setAttribute("fill", "#334155"); // slate-700
+      } else {
+        target.setAttribute("fill", fill);
+      }
     }
 
     const sourceChildren = Array.from(source.children);
     const targetChildren = Array.from(target.children);
     for (let i = 0; i < sourceChildren.length; i++) {
       if (targetChildren[i]) {
-        inlineStyles(sourceChildren[i], targetChildren[i]);
+        inlineStyles(sourceChildren[i], targetChildren[i], false);
       }
     }
   };
 
-  inlineStyles(svgElement, clone);
+  inlineStyles(svgElement, clone, true);
 
   // Get dimensions from the source SVG
   const rect = svgElement.getBoundingClientRect();
   const width = rect.width || 800;
   const height = rect.height || 600;
 
-  // Ensure viewBox is set correctly for the background rectangle
+  // Ensure viewBox is set correctly
   let viewBox = svgElement.getAttribute("viewBox");
   if (!viewBox) {
     viewBox = `0 0 ${width} ${height}`;
@@ -97,50 +106,64 @@ const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
   bgRect.setAttribute("fill", "white");
   clone.insertBefore(bgRect, clone.firstChild);
 
-  // Ensure namespaces and dimensions
-  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  // Set explicit width/height for the image loader
   clone.setAttribute("width", String(width));
   clone.setAttribute("height", String(height));
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
 
   const serializer = new XMLSerializer();
   const svgString = serializer.serializeToString(clone);
-  const svgBlob = new Blob([svgString], { type: "image/svg+xml" });
+
+  // Use a more robust blob creation
+  const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(svgBlob);
 
   const image = new Image();
+  // Setting width/height on the image object can help some browsers
+  image.width = width;
+  image.height = height;
 
   return new Promise<void>((resolve, reject) => {
     image.onload = () => {
-      const canvas = document.createElement("canvas");
-      const scale = 2; // High quality scale
-      canvas.width = width * scale;
-      canvas.height = height * scale;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
+      try {
+        const canvas = document.createElement("canvas");
+        const scale = 2; // Higher quality
+        canvas.width = width * scale;
+        canvas.height = height * scale;
+        const ctx = canvas.getContext("2d");
+
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          return reject(new Error("Canvas context unavailable"));
+        }
+
+        // 1. Clear with white (extra safety)
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 2. Draw the image
+        ctx.scale(scale, scale);
+        ctx.drawImage(image, 0, 0, width, height);
+
+        // 3. Export
+        const pngData = canvas.toDataURL("image/png", 1.0);
+        const link = document.createElement("a");
+        link.href = pngData;
+        link.download = filename;
+        link.click();
+
         URL.revokeObjectURL(url);
-        return reject(new Error("Canvas context unavailable"));
+        resolve();
+      } catch (err) {
+        console.error("Canvas export error:", err);
+        URL.revokeObjectURL(url);
+        reject(err);
       }
-
-      // Fill canvas with white background first
-      ctx.fillStyle = "white";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.scale(scale, scale);
-      ctx.drawImage(image, 0, 0, width, height);
-
-      const pngData = canvas.toDataURL("image/png", 1.0);
-      const link = document.createElement("a");
-      link.href = pngData;
-      link.download = filename;
-      link.click();
-
-      URL.revokeObjectURL(url);
-      resolve();
     };
     image.onerror = (err) => {
       console.error("SVG Image load error:", err);
       URL.revokeObjectURL(url);
-      reject(new Error("Failed to render SVG to image"));
+      reject(new Error("Failed to render SVG to image. The SVG might be too complex or contain invalid styles."));
     };
     image.src = url;
   });
@@ -437,8 +460,12 @@ export default function Chat() {
     if (window.innerWidth < 768) setIsSidebarOpen(false);
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
-    append({ role: "user", content: suggestion });
+  const handleSuggestionClick = (suggestion: string, immediate = false) => {
+    if (immediate) {
+      append({ role: "user", content: suggestion });
+    } else {
+      handleInputChange({ target: { value: suggestion } } as React.ChangeEvent<HTMLInputElement>);
+    }
   };
 
   if (isAuthLoading) {
@@ -685,14 +712,26 @@ export default function Chat() {
               {/* Suggestion Chips */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg mt-4">
                 {SUGGESTIONS.map((suggestion, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className="text-left px-4 py-3 rounded-xl border border-gray-200 bg-white hover:border-emerald-300 hover:shadow-md hover:bg-emerald-50/30 transition-all text-sm text-gray-700 shadow-sm"
-                    style={{ cursor: "pointer" }}
-                  >
-                    {suggestion}
-                  </button>
+                  <div key={idx} className="group relative">
+                    <button
+                      onClick={() => handleSuggestionClick(suggestion)}
+                      className="w-full text-left px-5 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm font-medium text-slate-700 transition-all hover:border-emerald-200 hover:bg-emerald-50/30 hover:shadow-sm pr-12"
+                      style={{ cursor: "pointer" }}
+                    >
+                      {suggestion}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSuggestionClick(suggestion, true);
+                      }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-xl bg-emerald-100 text-emerald-600 opacity-0 group-hover:opacity-100 transition-all hover:bg-emerald-600 hover:text-white"
+                      title="Send immediately"
+                      style={{ cursor: "pointer" }}
+                    >
+                      <Send className="h-4 w-4" />
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
