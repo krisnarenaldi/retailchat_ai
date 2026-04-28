@@ -42,58 +42,69 @@ const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
   // Function to inline computed styles into the SVG clone
   const inlineStyles = (source: Element, target: Element) => {
     const computed = window.getComputedStyle(source);
-    // Comprehensive styles for SVG rendering
     const styleProps = [
       "fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap", "stroke-linejoin",
-      "font-family", "font-size", "font-weight", "text-anchor",
-      "opacity", "visibility", "display", "stop-color", "stop-opacity", "filter", "clip-path"
+      "font-family", "font-size", "font-weight", "text-anchor", "color",
+      "opacity", "visibility", "display", "stop-color", "stop-opacity", "filter", "clip-path",
+      "shape-rendering"
     ];
 
     for (const prop of styleProps) {
       const value = computed.getPropertyValue(prop);
-      // IMPORTANT: We must include "none" because SVG defaults some properties to black/visible
-      if (value && value !== "normal") {
+      if (value && value !== "normal" && value !== "none") {
         target.setAttribute(prop, value);
+      } else if (value === "none") {
+        target.setAttribute(prop, "none");
       }
     }
 
-    // Specific fix for text
+    // Specific handling for text elements
     if (source.tagName.toLowerCase() === "text") {
-      target.setAttribute("fill", computed.fill || "black");
+      const fill = computed.getPropertyValue("fill");
+      target.setAttribute("fill", fill || "black");
     }
 
-    for (let i = 0; i < source.children.length; i++) {
-      inlineStyles(source.children[i], target.children[i]);
+    const sourceChildren = Array.from(source.children);
+    const targetChildren = Array.from(target.children);
+    for (let i = 0; i < sourceChildren.length; i++) {
+      if (targetChildren[i]) {
+        inlineStyles(sourceChildren[i], targetChildren[i]);
+      }
     }
   };
 
   inlineStyles(svgElement, clone);
 
-  // Add a white background rectangle as the first element inside the SVG
+  // Get dimensions from the source SVG
   const rect = svgElement.getBoundingClientRect();
   const width = rect.width || 800;
   const height = rect.height || 600;
 
+  // Ensure viewBox is set correctly for the background rectangle
+  let viewBox = svgElement.getAttribute("viewBox");
+  if (!viewBox) {
+    viewBox = `0 0 ${width} ${height}`;
+    clone.setAttribute("viewBox", viewBox);
+  }
+  const [vx, vy, vw, vh] = viewBox.split(/\s+/).map(Number);
+
+  // Add a white background rectangle that covers the entire viewBox
   const bgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-  bgRect.setAttribute("width", "100%");
-  bgRect.setAttribute("height", "100%");
+  bgRect.setAttribute("x", String(vx || 0));
+  bgRect.setAttribute("y", String(vy || 0));
+  bgRect.setAttribute("width", String(vw || width));
+  bgRect.setAttribute("height", String(vh || height));
   bgRect.setAttribute("fill", "white");
   clone.insertBefore(bgRect, clone.firstChild);
 
   // Ensure namespaces and dimensions
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-  clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
   clone.setAttribute("width", String(width));
   clone.setAttribute("height", String(height));
 
-  if (!clone.getAttribute("viewBox")) {
-    clone.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  }
-
   const serializer = new XMLSerializer();
   const svgString = serializer.serializeToString(clone);
-
-  const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+  const svgBlob = new Blob([svgString], { type: "image/svg+xml" });
   const url = URL.createObjectURL(svgBlob);
 
   const image = new Image();
@@ -101,8 +112,7 @@ const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
   return new Promise<void>((resolve, reject) => {
     image.onload = () => {
       const canvas = document.createElement("canvas");
-      // Use a consistent scale for high quality without being excessive
-      const scale = 2;
+      const scale = 2; // High quality scale
       canvas.width = width * scale;
       canvas.height = height * scale;
       const ctx = canvas.getContext("2d");
@@ -111,14 +121,14 @@ const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
         return reject(new Error("Canvas context unavailable"));
       }
 
-      // Draw white background on canvas as fallback
+      // Fill canvas with white background first
       ctx.fillStyle = "white";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       ctx.scale(scale, scale);
       ctx.drawImage(image, 0, 0, width, height);
 
-      const pngData = canvas.toDataURL("image/png");
+      const pngData = canvas.toDataURL("image/png", 1.0);
       const link = document.createElement("a");
       link.href = pngData;
       link.download = filename;
@@ -127,10 +137,10 @@ const exportSvgAsPng = async (svgElement: SVGSVGElement, filename: string) => {
       URL.revokeObjectURL(url);
       resolve();
     };
-    image.onerror = (error) => {
-      console.error("Image loading failed for PNG export:", error);
+    image.onerror = (err) => {
+      console.error("SVG Image load error:", err);
       URL.revokeObjectURL(url);
-      reject(error);
+      reject(new Error("Failed to render SVG to image"));
     };
     image.src = url;
   });
@@ -516,7 +526,7 @@ export default function Chat() {
                   <MessageSquare className={`h-4 w-4 shrink-0 ${currentSessionId === session.id ? 'text-emerald-600' : 'text-gray-400'}`} />
                   <span className="truncate">{session.title}</span>
                 </button>
-                
+
                 {session.title.length > 25 && (
                   <div className="absolute left-8 right-2 top-full mt-1 z-50 opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 pointer-events-none">
                     <div className="relative bg-slate-800 text-white text-[11.5px] font-medium py-2 px-3 rounded-md shadow-lg leading-relaxed whitespace-normal break-words">
