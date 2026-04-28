@@ -504,18 +504,28 @@ export default function Chat() {
             </div>
           ) : (
             sessions.map((session) => (
-              <button
-                key={session.id}
-                onClick={() => handleSelectSession(session.id)}
-                className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm text-left transition-colors ${currentSessionId === session.id
-                  ? "bg-emerald-50 text-emerald-800 font-medium"
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                  }`}
-                style={{ cursor: "pointer" }}
-              >
-                <MessageSquare className={`h-4 w-4 shrink-0 ${currentSessionId === session.id ? 'text-emerald-600' : 'text-gray-400'}`} />
-                <span className="truncate">{session.title}</span>
-              </button>
+              <div key={session.id} className="relative group/tooltip">
+                <button
+                  onClick={() => handleSelectSession(session.id)}
+                  className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm text-left transition-colors ${currentSessionId === session.id
+                    ? "bg-emerald-50 text-emerald-800 font-medium"
+                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    }`}
+                  style={{ cursor: "pointer" }}
+                >
+                  <MessageSquare className={`h-4 w-4 shrink-0 ${currentSessionId === session.id ? 'text-emerald-600' : 'text-gray-400'}`} />
+                  <span className="truncate">{session.title}</span>
+                </button>
+                
+                {session.title.length > 25 && (
+                  <div className="absolute left-8 right-2 top-full mt-1 z-50 opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all duration-200 pointer-events-none">
+                    <div className="relative bg-slate-800 text-white text-[11.5px] font-medium py-2 px-3 rounded-md shadow-lg leading-relaxed whitespace-normal break-words">
+                      <div className="absolute left-4 -top-1 w-2 h-2 bg-slate-800 rotate-45" />
+                      <span className="relative z-10">{session.title}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             ))
           )}
         </div>
