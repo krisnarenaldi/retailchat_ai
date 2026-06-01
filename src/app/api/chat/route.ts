@@ -64,6 +64,11 @@ ATURAN PENGGUNAAN TOOL:
     apiKey: process.env.ANTHROPIC_API_KEY,
   });
 
+  // 3b. Initialize Google/Gemini provider for Gemini model calls.
+  const google = await import("@ai-sdk/google").then((mod) =>
+    mod.createGoogle({ apiKey: process.env.GOOGLE_API_KEY }),
+  );
+
   // 4. Record the Usage (Insert into usage_logs)
   const { error: insertError } = await supabase
     .from("usage_logs")
@@ -89,13 +94,23 @@ ATURAN PENGGUNAAN TOOL:
   );
 
   const result = await streamText({
-    model: anthropic("claude-haiku-4-5-20251001"),
+    model: google("gemini-3.5-flash"),
     system: systemPrompt,
     messages,
     tools: agentTools,
     maxSteps: 5,
     maxTokens,
   });
+
+  // Old Anthropic model call kept for reference:
+  // const result = await streamText({
+  //   model: anthropic("claude-haiku-4-5-20251001"),
+  //   system: systemPrompt,
+  //   messages,
+  //   tools: agentTools,
+  //   maxSteps: 5,
+  //   maxTokens,
+  // });
 
   // 6. Return Data Stream Response
   return result.toDataStreamResponse();
