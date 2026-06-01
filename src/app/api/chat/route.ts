@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { streamText, tool, jsonSchema } from "ai";
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { RETAIL_TOOLS } from "@/lib/tools";
 
 // Required for Edge/Node streaming depending on your setup
@@ -65,9 +66,7 @@ ATURAN PENGGUNAAN TOOL:
   });
 
   // 3b. Initialize Google/Gemini provider for Gemini model calls.
-  const google = await import("@ai-sdk/google").then((mod) =>
-    mod.createGoogle({ apiKey: process.env.GOOGLE_API_KEY }),
-  );
+  const google = createGoogleGenerativeAI({ apiKey: process.env.GOOGLE_API_KEY });
 
   // 4. Record the Usage (Insert into usage_logs)
   const { error: insertError } = await supabase
@@ -94,7 +93,7 @@ ATURAN PENGGUNAAN TOOL:
   );
 
   const result = await streamText({
-    model: google("gemini-3.5-flash"),
+    model: google("gemini-3.5-flash") as any,
     system: systemPrompt,
     messages,
     tools: agentTools,
